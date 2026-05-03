@@ -148,7 +148,6 @@ async function loadFloors() {
     }
 }
 
-// ผูก event ต่างๆ
 document.getElementById('floor').addEventListener('change', async function() {
     const floor = this.value;
     const dept = document.getElementById('department');
@@ -211,7 +210,6 @@ document.getElementById('accessForm').addEventListener('submit', async function(
     const adminName = document.getElementById('adminName').value.trim();
     const additionalProblem = document.getElementById('additionalProblem').value.trim();
 
-    // validation
     if (!floor || !department || !doorNumber) return showAlert('กรุณาเลือกชั้น หน่วยงาน และประตู', 'error');
     if (isNaN(timeOffset) || timeOffset < 0) return showAlert('เวลาคลาดเคลื่อนไม่ถูกต้อง', 'error');
     if (isNaN(powerSupplyVoltage) || powerSupplyVoltage < 0 || powerSupplyVoltage > 30) return showAlert('แรงดัน Power Supply ไม่ถูกต้อง (0-30 V)', 'error');
@@ -222,28 +220,39 @@ document.getElementById('accessForm').addEventListener('submit', async function(
 
     isLoading = true;
     showLoading(true);
-    const recordId = `${floor}_${department}_${doorNumber}`.replace(/[\/\s\.#\$\[\]]/g, '_').replace(/_+/g, '_');
+
+    const recordId = `${floor}_${department}_${doorNumber}`
+        .replace(/[\/\s\.#\$\[\]]/g, '_')
+        .replace(/_+/g, '_');
     console.log('กำลังบันทึก document ID:', recordId);
 
+    // --- ใช้ Read-then-Write เพื่อเลี่ยงข้อจำกัด Compat SDK ---
+    const docRef = db.collection('records').doc(recordId);
     try {
-        await db.collection('records').doc(recordId).create({
-            floor, department, doorNumber,
-            timeDirection, timeOffset,
-            powerSupplyVoltage, batteryVoltage,
-            adminName,
-            additionalProblem: additionalProblem || '',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        console.log('บันทึกสำเร็จ');
-        showAlert('บันทึกข้อมูลสำเร็จ', 'success');
-        resetForm();
-        await loadFloors();
-    } catch (error) {
-        console.error('บันทึกผิดพลาด:', error);
-        if (error.code === 'already-exists') {
+        // ตรวจสอบก่อนว่ามี document นี้หรือไม่
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+            // มีแล้ว → แจ้งซ้ำ
             alert('ประตูนี้มีการบันทึกแล้ว');
             showAlert('ประตูนี้ถูกบันทึกไปแล้ว', 'error');
-        } else if (error.code === 'permission-denied') {
+        } else {
+            // ยังไม่มี → บันทึก
+            await docRef.set({
+                floor, department, doorNumber,
+                timeDirection, timeOffset,
+                powerSupplyVoltage, batteryVoltage,
+                adminName,
+                additionalProblem: additionalProblem || '',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            console.log('บันทึกสำเร็จ');
+            showAlert('บันทึกข้อมูลสำเร็จ', 'success');
+            resetForm();
+            await loadFloors(); // รีเฟรชข้อมูล
+        }
+    } catch (error) {
+        console.error('บันทึกผิดพลาด:', error);
+        if (error.code === 'permission-denied') {
             showAlert('สิทธิ์ไม่พอ: กรุณาตรวจสอบกฎ Firestore', 'error');
         } else {
             showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error');
@@ -254,9 +263,8 @@ document.getElementById('accessForm').addEventListener('submit', async function(
     }
 });
 
-// รีเซ็ตฟอร์ม (ผูก event แทน onclick)
+// รีเซ็ตฟอร์ม
 document.getElementById('resetBtn').addEventListener('click', resetForm);
-
 function resetForm() {
     console.log('รีเซ็ตฟอร์ม');
     document.getElementById('accessForm').reset();
