@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes">
-    <title>ระบบบันทึกข้อมูล Access Control (Firebase)</title>
-    <!-- เชื่อมโยงไฟล์ CSS ภายนอก -->
+    <title>ระบบบันทึกข้อมูล Access Control</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -70,21 +69,21 @@
             </div>
             <div class="required-note"><span>*</span> ข้อมูลที่ต้องกรอก</div>
             <div class="button-group">
-                <button type="button" class="btn btn-reset" onclick="resetForm()">
+                <button type="button" class="btn btn-reset" id="resetBtn">
                     <span>↺</span> ล้างข้อมูล
                 </button>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
                     <span>💾</span> บันทึกข้อมูล
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Firebase SDK (Compat) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-    <!-- เชื่อมโยงไฟล์ JavaScript ภายนอก -->
+    <!-- แยกไฟล์ JS ภายนอก -->
     <script src="script.js"></script>
 </body>
 </html>
