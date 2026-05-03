@@ -9,8 +9,12 @@ const firebaseConfig = {
   appId: "1:63381747693:web:faff2e8cde14d79e2659e4",
 };
 
-// เริ่มต้น Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase เริ่มต้นสำเร็จ');
+} catch (error) {
+    console.error('Firebase init error:', error);
+}
 const db = firebase.firestore();
 
 // ====================== UI HELPERS ======================
@@ -19,11 +23,12 @@ function showAlert(message, type) {
     alert.textContent = message;
     alert.className = 'alert alert-' + type;
     alert.style.display = 'block';
+    console.log(`[${type.toUpperCase()}] ${message}`);
     setTimeout(() => { alert.style.display = 'none'; }, 5000);
 }
 
 function showLoading(show) {
-    const submitBtn = document.querySelector('button[type="submit"]');
+    const submitBtn = document.getElementById('submitBtn');
     submitBtn.innerHTML = show ? '<span>⏳</span> กำลังบันทึก...' : '<span>💾</span> บันทึกข้อมูล';
     submitBtn.disabled = show;
 }
@@ -31,18 +36,12 @@ function showLoading(show) {
 // ====================== FIREBASE OPERATIONS ======================
 async function fetchAllDoors() {
     const snapshot = await db.collection('doors').get();
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 async function fetchAllRecords() {
     const snapshot = await db.collection('records').get();
-    return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-    }));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
 function makeRecordKey(floor, department, doorNumber) {
@@ -53,19 +52,17 @@ let allDoors = [];
 let recordedKeys = new Set();
 
 async function loadCachedData() {
-    const [doors, records] = await Promise.all([
-        fetchAllDoors(),
-        fetchAllRecords()
-    ]);
+    console.log('กำลังโหลดข้อมูลจาก Firestore...');
+    const [doors, records] = await Promise.all([fetchAllDoors(), fetchAllRecords()]);
     allDoors = doors;
     recordedKeys = new Set(records.map(r => makeRecordKey(r.floor, r.department, r.doorNumber)));
+    console.log(`โหลดเสร็จ: ${doors.length} ประตู, ${records.length} รายการบันทึก`);
 }
 
 function getAvailableFloors() {
     const floors = new Set();
     allDoors.forEach(door => {
-        const key = makeRecordKey(door.floor, door.department, door.doorNumber);
-        if (!recordedKeys.has(key)) {
+        if (!recordedKeys.has(makeRecordKey(door.floor, door.department, door.doorNumber))) {
             floors.add(door.floor);
         }
     });
@@ -74,112 +71,61 @@ function getAvailableFloors() {
 
 function getAvailableDepartments(floor) {
     const departments = new Set();
-    allDoors
-        .filter(door => door.floor === floor)
-        .forEach(door => {
-            const key = makeRecordKey(door.floor, door.department, door.doorNumber);
-            if (!recordedKeys.has(key)) {
-                departments.add(door.department);
-            }
-        });
+    allDoors.filter(d => d.floor === floor).forEach(door => {
+        if (!recordedKeys.has(makeRecordKey(door.floor, door.department, door.doorNumber))) {
+            departments.add(door.department);
+        }
+    });
     return Array.from(departments).sort();
 }
 
 function getAvailableDoorsWithDetails(floor, department) {
-    const doorsData = allDoors.filter(door => door.floor === floor && door.department === department);
-    const availableDoors = doorsData.filter(door => {
-        const key = makeRecordKey(door.floor, door.department, door.doorNumber);
-        return !recordedKeys.has(key);
-    });
-
+    const doorsData = allDoors.filter(d => d.floor === floor && d.department === department);
+    const available = doorsData.filter(d => !recordedKeys.has(makeRecordKey(d.floor, d.department, d.doorNumber)));
     const floorPlanUrl = doorsData.length > 0 ? doorsData[0].floorPlanUrl || '' : '';
     const doorImages = {};
-    availableDoors.forEach(door => {
-        if (door.doorImageUrl) {
-            doorImages[door.doorNumber] = door.doorImageUrl;
-        }
-    });
-
-    return {
-        doors: availableDoors.map(d => d.doorNumber),
-        floorPlan: floorPlanUrl,
-        doorImages: doorImages
-    };
+    available.forEach(d => { if (d.doorImageUrl) doorImages[d.doorNumber] = d.doorImageUrl; });
+    return { doors: available.map(d => d.doorNumber), floorPlan: floorPlanUrl, doorImages };
 }
 
 let currentFloorPlan = '';
 let doorImages = {};
 
 function populateFloors(floors) {
-    const floorSelect = document.getElementById('floor');
-    floorSelect.innerHTML = '<option value="">-- กรุณาเลือกชั้น --</option>';
-    floors.forEach(floor => {
-        const option = document.createElement('option');
-        option.value = floor;
-        option.textContent = 'ชั้น ' + floor;
-        floorSelect.appendChild(option);
-    });
+    const sel = document.getElementById('floor');
+    sel.innerHTML = '<option value="">-- กรุณาเลือกชั้น --</option>';
+    floors.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = 'ชั้น ' + f; sel.appendChild(o); });
 }
-
 function populateDepartments(departments) {
-    const deptSelect = document.getElementById('department');
-    deptSelect.innerHTML = '<option value="">-- กรุณาเลือกหน่วยงาน --</option>';
-    departments.forEach(dept => {
-        const option = document.createElement('option');
-        option.value = dept;
-        option.textContent = dept;
-        deptSelect.appendChild(option);
-    });
+    const sel = document.getElementById('department');
+    sel.innerHTML = '<option value="">-- กรุณาเลือกหน่วยงาน --</option>';
+    departments.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; sel.appendChild(o); });
 }
-
 function updateDoorSelect(doors) {
-    const doorSelect = document.getElementById('doorNumber');
-    doorSelect.innerHTML = '<option value="">-- กรุณาเลือกประตู --</option>';
-    doors.forEach(door => {
-        const option = document.createElement('option');
-        option.value = door;
-        option.textContent = door;
-        doorSelect.appendChild(option);
-    });
+    const sel = document.getElementById('doorNumber');
+    sel.innerHTML = '<option value="">-- กรุณาเลือกประตู --</option>';
+    doors.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; sel.appendChild(o); });
 }
 
 function showFloorPlan() {
-    const image = document.getElementById('displayImage');
-    const placeholder = document.getElementById('imagePlaceholder');
+    const img = document.getElementById('displayImage'), ph = document.getElementById('imagePlaceholder');
     if (currentFloorPlan && currentFloorPlan.startsWith('http')) {
-        image.src = currentFloorPlan;
-        image.onload = () => {
-            image.style.display = 'block';
-            placeholder.style.display = 'none';
-        };
-        image.onerror = () => {
-            image.style.display = 'none';
-            placeholder.style.display = 'block';
-            placeholder.innerHTML = '<i>❌</i> ไม่สามารถโหลดรูปผังหน่วยงาน';
-        };
+        img.src = currentFloorPlan;
+        img.onload = () => { img.style.display = 'block'; ph.style.display = 'none'; };
+        img.onerror = () => { img.style.display = 'none'; ph.style.display = 'block'; ph.innerHTML = '<i>❌</i> ไม่สามารถโหลดรูปผัง'; };
     } else {
-        image.style.display = 'none';
-        placeholder.style.display = 'block';
-        placeholder.innerHTML = '<i>🏢</i> ไม่มีรูปผังสำหรับหน่วยงานนี้';
+        img.style.display = 'none'; ph.style.display = 'block'; ph.innerHTML = '<i>🏢</i> ไม่มีรูปผัง';
     }
 }
-
-function showDoorImage(doorNumber) {
-    const image = document.getElementById('displayImage');
-    const placeholder = document.getElementById('imagePlaceholder');
-    const url = doorImages[doorNumber];
+function showDoorImage(num) {
+    const img = document.getElementById('displayImage'), ph = document.getElementById('imagePlaceholder');
+    const url = doorImages[num];
     if (url && url.startsWith('http')) {
-        image.src = url;
-        image.onload = () => {
-            image.style.display = 'block';
-            placeholder.style.display = 'none';
-        };
-        image.onerror = () => showFloorPlan();
-    } else {
-        showFloorPlan();
-    }
+        img.src = url;
+        img.onload = () => { img.style.display = 'block'; ph.style.display = 'none'; };
+        img.onerror = () => showFloorPlan();
+    } else showFloorPlan();
 }
-
 function hideImage() {
     document.getElementById('displayImage').style.display = 'none';
     document.getElementById('imagePlaceholder').style.display = 'block';
@@ -193,75 +139,67 @@ async function loadFloors() {
         await loadCachedData();
         const floors = getAvailableFloors();
         populateFloors(floors);
-        if (floors.length === 0) showAlert('ไม่พบชั้นที่ยังมีข้อมูลให้บันทึก', 'info');
+        if (floors.length === 0) showAlert('ไม่มีชั้นที่ต้องบันทึก', 'info');
     } catch (err) {
-        showAlert('ไม่สามารถโหลดข้อมูล: ' + err.message, 'error');
+        console.error('loadFloors error:', err);
+        showAlert('โหลดชั้นล้มเหลว: ' + err.message, 'error');
     } finally {
         showLoading(false);
     }
 }
 
+// ผูก event ต่างๆ
 document.getElementById('floor').addEventListener('change', async function() {
     const floor = this.value;
-    const deptSelect = document.getElementById('department');
-    deptSelect.innerHTML = '<option value="">-- กรุณาเลือกหน่วยงาน --</option>';
-    deptSelect.disabled = !floor;
+    const dept = document.getElementById('department');
+    dept.innerHTML = '<option value="">-- กรุณาเลือกหน่วยงาน --</option>';
+    dept.disabled = !floor;
     document.getElementById('doorNumber').innerHTML = '<option value="">-- กรุณาเลือกประตู --</option>';
     document.getElementById('doorNumber').disabled = true;
     hideImage();
-
     if (floor) {
+        showLoading(true);
         try {
-            showLoading(true);
             const departments = getAvailableDepartments(floor);
             populateDepartments(departments);
-            if (departments.length === 0) showAlert('ไม่พบหน่วยงานที่ยังมีข้อมูลให้บันทึกในชั้นนี้', 'info');
+            if (departments.length === 0) showAlert('ไม่มีหน่วยงานเหลือในชั้นนี้', 'info');
         } catch (err) {
+            console.error(err);
             showAlert('ผิดพลาด: ' + err.message, 'error');
-        } finally {
-            showLoading(false);
-        }
+        } finally { showLoading(false); }
     }
 });
 
 document.getElementById('department').addEventListener('change', async function() {
     const floor = document.getElementById('floor').value;
-    const department = this.value;
+    const dept = this.value;
     document.getElementById('doorNumber').innerHTML = '<option value="">-- กรุณาเลือกประตู --</option>';
-    document.getElementById('doorNumber').disabled = !department;
-
-    if (floor && department) {
+    document.getElementById('doorNumber').disabled = !dept;
+    if (floor && dept) {
+        showLoading(true);
         try {
-            showLoading(true);
-            const { doors, floorPlan, doorImages: images } = getAvailableDoorsWithDetails(floor, department);
+            const { doors, floorPlan, doorImages: imgs } = getAvailableDoorsWithDetails(floor, dept);
             currentFloorPlan = floorPlan;
-            doorImages = images;
+            doorImages = imgs;
             updateDoorSelect(doors);
-            if (doors.length === 0) {
-                showAlert('ไม่พบประตูที่ยังไม่ได้บันทึกสำหรับหน่วยงานนี้', 'info');
-            }
+            if (doors.length === 0) showAlert('ไม่มีประตูเหลือ', 'info');
             showFloorPlan();
-        } catch (err) {
-            showAlert('ผิดพลาด: ' + err.message, 'error');
-        } finally {
-            showLoading(false);
-        }
+        } catch (err) { showAlert('ผิดพลาด: ' + err.message, 'error'); }
+        finally { showLoading(false); }
     }
 });
 
 document.getElementById('doorNumber').addEventListener('change', function() {
-    const doorNumber = this.value;
-    if (doorNumber) {
-        showDoorImage(doorNumber);
-    } else {
-        showFloorPlan();
-    }
+    this.value ? showDoorImage(this.value) : showFloorPlan();
 });
 
-// ====================== SAVE DATA ======================
+// ====================== SAVE ======================
+let isLoading = false;
+
 document.getElementById('accessForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    if (isLoading) return;
+    console.log('เริ่ม submit form...');
+    if (isLoading) { console.log('กำลังทำงานอยู่, ยกเลิก'); return; }
 
     const floor = document.getElementById('floor').value;
     const department = document.getElementById('department').value;
@@ -273,57 +211,40 @@ document.getElementById('accessForm').addEventListener('submit', async function(
     const adminName = document.getElementById('adminName').value.trim();
     const additionalProblem = document.getElementById('additionalProblem').value.trim();
 
-    if (!floor || !department || !doorNumber) {
-        showAlert('กรุณาเลือกชั้น หน่วยงาน และประตูให้ครบถ้วน', 'error');
-        return;
-    }
-    if (isNaN(timeOffset) || timeOffset < 0) {
-        showAlert('กรุณากรอกเวลาคลาดเคลื่อนให้ถูกต้อง', 'error');
-        return;
-    }
-    if (isNaN(powerSupplyVoltage) || powerSupplyVoltage < 0 || powerSupplyVoltage > 30) {
-        showAlert('กรุณากรอกแรงดัน Power Supply ให้ถูกต้อง (0-30 V)', 'error');
-        return;
-    }
-    if (isNaN(batteryVoltage) || batteryVoltage < 0 || batteryVoltage > 30) {
-        showAlert('กรุณากรอกแรงดันแบตเตอรี่ให้ถูกต้อง (0-30 V)', 'error');
-        return;
-    }
-    if (!adminName) {
-        showAlert('กรุณากรอกชื่อ Admin', 'error');
-        return;
-    }
+    // validation
+    if (!floor || !department || !doorNumber) return showAlert('กรุณาเลือกชั้น หน่วยงาน และประตู', 'error');
+    if (isNaN(timeOffset) || timeOffset < 0) return showAlert('เวลาคลาดเคลื่อนไม่ถูกต้อง', 'error');
+    if (isNaN(powerSupplyVoltage) || powerSupplyVoltage < 0 || powerSupplyVoltage > 30) return showAlert('แรงดัน Power Supply ไม่ถูกต้อง (0-30 V)', 'error');
+    if (isNaN(batteryVoltage) || batteryVoltage < 0 || batteryVoltage > 30) return showAlert('แรงดันแบตเตอรี่ไม่ถูกต้อง (0-30 V)', 'error');
+    if (!adminName) return showAlert('กรุณากรอกชื่อ Admin', 'error');
 
     if (!confirm('ยืนยันการบันทึกข้อมูล?')) return;
 
     isLoading = true;
     showLoading(true);
-
-    const recordId = `${floor}_${department}_${doorNumber}`
-        .replace(/[\/\s\.#\$\[\]]/g, '_')
-        .replace(/_+/g, '_');
+    const recordId = `${floor}_${department}_${doorNumber}`.replace(/[\/\s\.#\$\[\]]/g, '_').replace(/_+/g, '_');
+    console.log('กำลังบันทึก document ID:', recordId);
 
     try {
         await db.collection('records').doc(recordId).create({
-            floor: floor,
-            department: department,
-            doorNumber: doorNumber,
-            timeDirection: timeDirection,
-            timeOffset: timeOffset,
-            powerSupplyVoltage: powerSupplyVoltage,
-            batteryVoltage: batteryVoltage,
-            adminName: adminName,
+            floor, department, doorNumber,
+            timeDirection, timeOffset,
+            powerSupplyVoltage, batteryVoltage,
+            adminName,
             additionalProblem: additionalProblem || '',
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-
+        console.log('บันทึกสำเร็จ');
         showAlert('บันทึกข้อมูลสำเร็จ', 'success');
         resetForm();
         await loadFloors();
     } catch (error) {
+        console.error('บันทึกผิดพลาด:', error);
         if (error.code === 'already-exists') {
             alert('ประตูนี้มีการบันทึกแล้ว');
-            showAlert('ประตูนี้มีการบันทึกข้อมูลไปแล้ว', 'error');
+            showAlert('ประตูนี้ถูกบันทึกไปแล้ว', 'error');
+        } else if (error.code === 'permission-denied') {
+            showAlert('สิทธิ์ไม่พอ: กรุณาตรวจสอบกฎ Firestore', 'error');
         } else {
             showAlert('เกิดข้อผิดพลาด: ' + error.message, 'error');
         }
@@ -333,9 +254,11 @@ document.getElementById('accessForm').addEventListener('submit', async function(
     }
 });
 
-let isLoading = false;
+// รีเซ็ตฟอร์ม (ผูก event แทน onclick)
+document.getElementById('resetBtn').addEventListener('click', resetForm);
 
 function resetForm() {
+    console.log('รีเซ็ตฟอร์ม');
     document.getElementById('accessForm').reset();
     document.getElementById('department').disabled = true;
     document.getElementById('doorNumber').disabled = true;
@@ -349,35 +272,36 @@ function resetForm() {
     currentFloorPlan = '';
 }
 
+// นาฬิกา
 function updateCurrentTime() {
     const now = new Date();
-    const options = { 
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
-        hour12: false, timeZone: 'Asia/Bangkok'
-    };
+    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: 'Asia/Bangkok' };
     document.getElementById('currentDateTime').innerHTML = '🕐 ' + now.toLocaleDateString('th-TH', options);
 }
 
+// ทดสอบการเชื่อมต่อ
 async function testConnection() {
     const statusEl = document.getElementById('connectionStatus');
     try {
-        const testDoc = await db.collection('doors').limit(1).get();
+        const test = await db.collection('doors').limit(1).get();
         statusEl.className = 'connection-status status-connected';
-        statusEl.innerHTML = `✅ เชื่อมต่อ Firestore สำเร็จ (${testDoc.size} เอกสารทดสอบ)`;
+        statusEl.innerHTML = `✅ เชื่อมต่อ Firestore สำเร็จ (${test.size})`;
+        console.log('ทดสอบเชื่อมต่อผ่าน');
     } catch (err) {
         statusEl.className = 'connection-status status-disconnected';
-        statusEl.innerHTML = '❌ การเชื่อมต่อล้มเหลว: ' + err.message;
+        statusEl.innerHTML = '❌ เชื่อมต่อล้มเหลว: ' + err.message;
+        console.error('Connection test error:', err);
     }
 }
 
-window.onload = async function() {
+// เริ่มต้น
+window.onload = async () => {
     updateCurrentTime();
     setInterval(updateCurrentTime, 1000);
     await testConnection();
     await loadFloors();
 };
 
-window.addEventListener('beforeunload', function() {
+window.addEventListener('beforeunload', () => {
     if (isLoading) return 'กำลังบันทึกข้อมูล กรุณารอสักครู่...';
 });
