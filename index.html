@@ -218,27 +218,118 @@
             grid-column: span 2;
         }
         .required-note span { color: #e74c3c; }
+
+        /* ==================== ปรับปรุงสำหรับมือถือ ==================== */
         @media (max-width: 640px) {
-            body { padding: 5px; }
-            .container { padding: 15px; }
-            .header-row { flex-direction: column; align-items: flex-start; gap: 5px; }
-            h1 { font-size: 20px; margin-bottom: 5px; line-height: 1.3; }
-            h1::before { font-size: 24px; }
-            .current-time { font-size: 12px; padding: 6px 10px; margin-bottom: 5px; align-self: flex-start; }
-            .connection-status { margin-bottom: 10px; font-size: 12px; width: 100%; text-align: left; }
-            .form-grid { grid-template-columns: 1fr; gap: 12px; }
-            .floor-plan-section { grid-column: span 1; min-height: 200px; height: auto; max-height: 300px; margin: 5px 0 10px 0; padding: 10px; }
-            .floor-plan-image { max-height: 280px; }
-            .form-group { margin-bottom: 5px; }
-            .form-group label { font-size: 14px; }
-            .form-group input, .form-group select, .form-group textarea { padding: 12px; font-size: 16px; }
-            .time-group { gap: 8px; }
-            .time-group select, .time-group input { padding: 12px; }
-            .time-group select { width: 40%; }
-            .time-group input { width: 60%; }
-            .button-group { grid-column: span 1; flex-direction: column; gap: 8px; margin-top: 15px; padding-top: 15px; }
-            .btn { width: 100%; padding: 14px; font-size: 16px; justify-content: center; }
-            .required-note { grid-column: span 1; font-size: 12px; }
+            body {
+                padding: 5px;
+                background-color: #ffffff; /* ให้เต็มจอขาว */
+            }
+            .container {
+                padding: 15px;
+                border-radius: 0; /* ชิดขอบเหมือน native */
+                box-shadow: none;
+            }
+            .header-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            h1 {
+                font-size: 20px;
+                margin-bottom: 0;
+                white-space: normal;
+                line-height: 1.3;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 8px;
+            }
+            h1::before {
+                font-size: 24px;
+            }
+            .current-time {
+                font-size: 12px;
+                padding: 6px 10px;
+                align-self: flex-start;
+                white-space: normal;
+                word-break: keep-all;
+                border-radius: 20px;
+            }
+            .connection-status {
+                font-size: 12px;
+                width: 100%;
+                text-align: left;
+                margin-bottom: 10px;
+            }
+            .form-grid {
+                grid-template-columns: 1fr;  /* คอลัมน์เดียว */
+                gap: 12px;
+            }
+            /* รีเซ็ตทุก span ให้เป็น 1 */
+            .floor-plan-section,
+            .button-group,
+            .required-note {
+                grid-column: span 1;
+            }
+            /* จัดการกับ element ที่มี inline style grid-column: span 2 */
+            .form-group[style*="grid-column: span 2;"] {
+                grid-column: span 1 !important;
+            }
+            .floor-plan-section {
+                min-height: 180px;  /* ลดความสูงขั้นต่ำ */
+                max-height: 300px;
+                margin: 5px 0 10px 0;
+                padding: 10px;
+                order: 0; /* ให้อยู่ตำแหน่งแรกๆ หลังเลือกหน่วยงาน */
+            }
+            .floor-plan-image {
+                max-height: 250px;
+            }
+            .form-group {
+                margin-bottom: 5px;
+            }
+            .form-group label {
+                font-size: 14px;
+            }
+            /* ทำให้ input/select/textarea ใหญ่พอดีมือถือ (16px ป้องกัน iOS zoom) */
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                padding: 12px;
+                font-size: 16px;
+            }
+            .time-group {
+                gap: 8px;
+            }
+            .time-group select,
+            .time-group input {
+                padding: 12px;
+                font-size: 16px;
+            }
+            .time-group select {
+                width: 40%;
+            }
+            .time-group input {
+                width: 60%;
+            }
+            .button-group {
+                flex-direction: column;
+                gap: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
+            }
+            .btn {
+                width: 100%;
+                padding: 14px;
+                font-size: 16px;
+                justify-content: center;
+            }
+            .required-note {
+                font-size: 12px;
+                margin-top: 5px;
+            }
+            .alert {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
@@ -323,14 +414,13 @@
         // ====================== CONFIG ======================
         // ⚠️ แก้ไขเป็นของโปรเจกต์คุณจาก Firebase Console -> Project settings
         const firebaseConfig = {
-  	apiKey: "AIzaSyB8TEo2xThu9VuDsdViMq3pHXcDPiYvL_U",
-  	authDomain: "ma-access-control-records.firebaseapp.com",
-  	projectId: "ma-access-control-records",
-  	storageBucket: "ma-access-control-records.firebasestorage.app",
-  	messagingSenderId: "63381747693",
-  	appId: "1:63381747693:web:faff2e8cde14d79e2659e4",
-  	measurementId: "G-22WFX8YX2W"
-	};
+  			apiKey: "AIzaSyB8TEo2xThu9VuDsdViMq3pHXcDPiYvL_U",
+  			authDomain: "ma-access-control-records.firebaseapp.com",
+  			projectId: "ma-access-control-records",
+  			storageBucket: "ma-access-control-records.firebasestorage.app",
+  			messagingSenderId: "63381747693",
+  			appId: "1:63381747693:web:faff2e8cde14d79e2659e4",
+		};
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
@@ -351,7 +441,6 @@
         }
 
         // ====================== FIREBASE OPERATIONS ======================
-        // ดึงข้อมูลประตูทั้งหมดจาก Firestore
         async function fetchAllDoors() {
             const snapshot = await db.collection('doors').get();
             return snapshot.docs.map(doc => ({
@@ -360,7 +449,6 @@
             }));
         }
 
-        // ดึงข้อมูลที่บันทึกแล้วทั้งหมด
         async function fetchAllRecords() {
             const snapshot = await db.collection('records').get();
             return snapshot.docs.map(doc => ({
@@ -369,16 +457,13 @@
             }));
         }
 
-        // สร้าง key สำหรับเช็คซ้ำ
         function makeRecordKey(floor, department, doorNumber) {
             return `${floor}|${department}|${doorNumber}`;
         }
 
-        // ====================== LOGIC (แบบ Client-side Join) ======================
         let allDoors = [];
         let recordedKeys = new Set();
 
-        // โหลดข้อมูลใหม่ทุกครั้งที่ต้องการ (หรือเรียกครั้งเดียวแล้ว cache)
         async function loadCachedData() {
             const [doors, records] = await Promise.all([
                 fetchAllDoors(),
@@ -388,7 +473,6 @@
             recordedKeys = new Set(records.map(r => makeRecordKey(r.floor, r.department, r.doorNumber)));
         }
 
-        // ฟังก์ชันที่เหลือใช้ข้อมูลจากตัวแปรด้านบน
         function getAvailableFloors() {
             const floors = new Set();
             allDoors.forEach(door => {
@@ -420,9 +504,7 @@
                 return !recordedKeys.has(key);
             });
 
-            // หา floorPlan (ใช้ของแถวแรกที่มี)
             const floorPlanUrl = doorsData.length > 0 ? doorsData[0].floorPlanUrl || '' : '';
-            
             const doorImages = {};
             availableDoors.forEach(door => {
                 if (door.doorImageUrl) {
@@ -437,7 +519,6 @@
             };
         }
 
-        // ====================== UI UPDATE FUNCTIONS ======================
         let currentFloorPlan = '';
         let doorImages = {};
 
@@ -544,7 +625,6 @@
             if (floor) {
                 try {
                     showLoading(true);
-                    // ใช้ข้อมูลที่ cache ไว้แล้ว
                     const departments = getAvailableDepartments(floor);
                     populateDepartments(departments);
                     if (departments.length === 0) showAlert('ไม่พบหน่วยงานที่ยังมีข้อมูลให้บันทึกในชั้นนี้', 'info');
@@ -605,7 +685,6 @@
             const adminName = document.getElementById('adminName').value.trim();
             const additionalProblem = document.getElementById('additionalProblem').value.trim();
 
-            // Validation
             if (!floor || !department || !doorNumber) {
                 showAlert('กรุณาเลือกชั้น หน่วยงาน และประตูให้ครบถ้วน', 'error');
                 return;
@@ -632,7 +711,6 @@
             isLoading = true;
             showLoading(true);
 
-            // สร้าง Document ID (จะซ้ำไม่ได้)
             const recordId = `${floor}_${department}_${doorNumber}`
                 .replace(/[\/\s\.#\$\[\]]/g, '_')
                 .replace(/_+/g, '_');
@@ -653,7 +731,7 @@
 
                 showAlert('บันทึกข้อมูลสำเร็จ', 'success');
                 resetForm();
-                await loadFloors(); // รีเฟรชข้อมูล
+                await loadFloors();
             } catch (error) {
                 if (error.code === 'already-exists') {
                     alert('ประตูนี้มีการบันทึกแล้ว');
@@ -669,7 +747,6 @@
 
         let isLoading = false;
 
-        // ====================== INIT & RESET ======================
         function resetForm() {
             document.getElementById('accessForm').reset();
             document.getElementById('department').disabled = true;
@@ -694,7 +771,6 @@
             document.getElementById('currentDateTime').innerHTML = '🕐 ' + now.toLocaleDateString('th-TH', options);
         }
 
-        // ทดสอบเชื่อมต่อ Firestore
         async function testConnection() {
             const statusEl = document.getElementById('connectionStatus');
             try {
@@ -707,7 +783,6 @@
             }
         }
 
-        // เริ่มต้นเมื่อโหลดหน้า
         window.onload = async function() {
             updateCurrentTime();
             setInterval(updateCurrentTime, 1000);
